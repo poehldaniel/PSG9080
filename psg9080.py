@@ -1,8 +1,8 @@
-######################################################################
+###############################################################################
 # Author:      DANIEL PÖHL
 # Description: Framework to control the Programmable Signal Generator PSG9080
-# Comments:    last changes: 2021-12-17 10:06:35
-######################################################################
+# Comments:    last changes: 2021-12-17 13:01:46
+###############################################################################
 
 import serial
 import codecs
@@ -128,7 +128,7 @@ class PSG9080:
         return self.__send(command)
 
     def on_all(self) -> bool:
-        """turning both channels on
+        """turn both channels on
 
         :return: turned on successfully (True) or not (False)
         :rtype: bool
@@ -157,7 +157,7 @@ class PSG9080:
         return self.__send(command)
 
     def off_all(self) -> bool:
-        """turning both channels off
+        """turn both channels off
 
         :return: turned off successfully (True) or not (False)
         :rtype: bool
