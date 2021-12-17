@@ -4,8 +4,6 @@ awg = PSG9080()
 awg.connect()
 print(awg.isConnected())
 
-print(awg.waveforms)
-
 # awg.waveform(channel=1, waveform="Pulse")
 # awg.frequency(channel=1, frequency=1000, unit="Hz")
 # awg.amplitude(channel=1, amplitude=5, unit="V")
