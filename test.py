@@ -2,7 +2,7 @@ from psg9080 import PSG9080
 
 awg = PSG9080()
 awg.connect()
-print(awg.isConnected())
+print(awg.is_connected())
 
 # awg.waveform(channel=1, waveform="Pulse")
 # awg.frequency(channel=1, frequency=1000, unit="Hz")
@@ -13,4 +13,4 @@ print(awg.isConnected())
 # awg.on(channel=1)
 
 awg.disconnect()
-print(awg.isConnected())
+print(awg.is_connected())

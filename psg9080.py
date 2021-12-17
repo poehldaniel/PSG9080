@@ -75,7 +75,7 @@ class PSG9080:
         except:
             return False
 
-    def isConnected(self) -> bool:
+    def is_connected(self) -> bool:
         """check if the connection to the PSG9080 is established
 
         :return: connected (True) or not (False)
