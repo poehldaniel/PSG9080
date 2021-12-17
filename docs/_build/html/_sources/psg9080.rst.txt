@@ -1,7 +1,0 @@
-psg9080 module
-==============
-
-.. automodule:: psg9080
-   :members:
-   :undoc-members:
-   :show-inheritance:
