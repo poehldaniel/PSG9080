@@ -1,0 +1,458 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>psg9080 &#8212; PSG9080  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for psg9080</h1><div class="highlight"><pre>
+<span></span><span class="c1">######################################################################</span>
+<span class="c1"># Author:      DANIEL PÖHL</span>
+<span class="c1"># Description: Framework to control the Programmable Signal Generator PSG9080</span>
+<span class="c1"># Comments:    last changes: 2021-12-17 10:06:35</span>
+<span class="c1">######################################################################</span>
+
+<span class="kn">import</span> <span class="nn">serial</span>
+<span class="kn">import</span> <span class="nn">codecs</span>
+
+
+<div class="viewcode-block" id="PSG9080"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080">[docs]</a><span class="k">class</span> <span class="nc">PSG9080</span><span class="p">:</span>
+
+    <span class="n">waveforms</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;Sine&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Square&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Pulse&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Triangle&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Ramp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;CMOS&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;DC&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Dev-Sine&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Half-Wave&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Full-Wave&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Pos-Ladder&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Neg-Ladder&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Pos-Trap&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Neg-Trap&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Noise&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Exp-Rise&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Exp-Fall&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Log-Rise&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Log-Fall&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Sinc&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Multi tone&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Lorenz&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="c1"># __start_bit = &quot;:&quot;</span>
+    <span class="c1"># __operator = [&quot;w&quot;, &quot;r&quot;]</span>
+    <span class="c1"># __eol = &quot;\n&quot;</span>
+    <span class="c1"># function_code 0-99</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="s2">&quot;COM7&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;__init__ method</span>
+
+<span class="sd">        :param port: COM port of the PSG9080, defaults to &quot;COM7&quot;</span>
+<span class="sd">        :type port: str, optional</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PSG9080.connect"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;connect to the selected COM port</span>
+
+<span class="sd">        :return: successfully connected (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">serial</span><span class="o">.</span><span class="n">Serial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="mi">115200</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Connected to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Connection failed! (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="PSG9080.disconnect"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.disconnect">[docs]</a>    <span class="k">def</span> <span class="nf">disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;disconnect the PSG9080</span>
+
+<span class="sd">        :return: successfully disconnected (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="PSG9080.isConnected"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.isConnected">[docs]</a>    <span class="k">def</span> <span class="nf">isConnected</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;check if the connection to the PSG9080 is established</span>
+
+<span class="sd">        :return: connected (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">isOpen</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+    <span class="k">def</span> <span class="nf">__send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;send the desired command to the PSG9080</span>
+
+<span class="sd">        :param command: desired command </span>
+<span class="sd">        :type command: str</span>
+<span class="sd">        :return: sending data successfully (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s2">&quot;command must be a string&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">codecs</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">command</span><span class="p">))</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+            <span class="k">if</span> <span class="s2">&quot;ok&quot;</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">__receive</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="PSG9080.on"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.on">[docs]</a>    <span class="k">def</span> <span class="nf">on</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;turn the selected channel on</span>
+
+<span class="sd">        :param channel: channel to be turned on, defaults to 1</span>
+<span class="sd">        :type channel: int, optional</span>
+<span class="sd">        :return: turned on successfully (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;channel must be int&quot;</span>
+        <span class="k">assert</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;channel must be 1 or 2&quot;</span>
+        <span class="k">if</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w10=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.on_all"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.on_all">[docs]</a>    <span class="k">def</span> <span class="nf">on_all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;turning both channels on</span>
+
+<span class="sd">        :return: turned on successfully (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w10=1,1.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.off"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.off">[docs]</a>    <span class="k">def</span> <span class="nf">off</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;turn the selected channel off</span>
+
+<span class="sd">        :param channel: channel to be turned off, defaults to 1</span>
+<span class="sd">        :type channel: int, optional</span>
+<span class="sd">        :return: turned off successfully (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;channel must be int&quot;</span>
+        <span class="k">assert</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;channel must be 1 or 2&quot;</span>
+        <span class="k">if</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w10=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.off_all"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.off_all">[docs]</a>    <span class="k">def</span> <span class="nf">off_all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;turning both channels off</span>
+
+<span class="sd">        :return: turned off successfully (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel_state</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w10=0,0.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.waveform"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.waveform">[docs]</a>    <span class="k">def</span> <span class="nf">waveform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">waveform</span><span class="o">=</span><span class="s2">&quot;Sine&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;select waveform</span>
+
+<span class="sd">        :param channel: desired channel, defaults to 1</span>
+<span class="sd">        :type channel: int, optional</span>
+<span class="sd">        :param waveform: desired waveform, defaults to &quot;Sine&quot;</span>
+<span class="sd">        :type waveform: str, optional</span>
+<span class="sd">        :return: waveform successfully selected (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;channel must be int&quot;</span>
+        <span class="k">assert</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;channel must be 1 or 2&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">waveform</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s2">&quot;waveform must be a string&quot;</span>
+        <span class="k">assert</span> <span class="n">waveform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">waveforms</span><span class="p">,</span> <span class="s2">&quot;waveform not known&quot;</span>
+        <span class="c1"># CH1: w11, CH2: w12</span>
+        <span class="k">if</span> <span class="s2">&quot;Arbitrary&quot;</span> <span class="ow">in</span> <span class="n">waveform</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w1</span><span class="si">{</span><span class="n">channel</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">waveform</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w1</span><span class="si">{</span><span class="n">channel</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">waveforms</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">waveform</span><span class="p">)</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.frequency"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.frequency">[docs]</a>    <span class="k">def</span> <span class="nf">frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frequency</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;Hz&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;select frequency</span>
+
+<span class="sd">        :param channel: desired channel, defaults to 1</span>
+<span class="sd">        :type channel: int, optional</span>
+<span class="sd">        :param frequency: desired frequency, defaults to 1000</span>
+<span class="sd">        :type frequency: int, optional</span>
+<span class="sd">        :param unit: unit of the frequency, defaults to &quot;Hz&quot;</span>
+<span class="sd">        :type unit: str, optional</span>
+<span class="sd">        :return: frequency successfully selected (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;channel must be int&quot;</span>
+        <span class="k">assert</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;channel must be 1 or 2&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">frequency</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;frequency must be int&quot;</span>
+        <span class="n">units</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;uHz&quot;</span><span class="p">,</span> <span class="s2">&quot;mHz&quot;</span><span class="p">,</span> <span class="s2">&quot;Hz&quot;</span><span class="p">,</span> <span class="s2">&quot;kHz&quot;</span><span class="p">,</span> <span class="s2">&quot;MHz&quot;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">unit</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s2">&quot;unit must be a string&quot;</span>
+        <span class="k">assert</span> <span class="n">unit</span> <span class="ow">in</span> <span class="n">units</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;unit not known, possible units: </span><span class="si">{</span><span class="n">units</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="c1"># CH1: w13, CH2: w14</span>
+        <span class="k">if</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">&quot;Hz&quot;</span><span class="p">:</span>
+            <span class="n">unit_operator</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">frequency</span> <span class="o">=</span> <span class="n">frequency</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="k">elif</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">&quot;kHz&quot;</span> <span class="ow">or</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">&quot;KHz&quot;</span><span class="p">:</span>
+            <span class="n">unit_operator</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">frequency</span> <span class="o">=</span> <span class="n">frequency</span> <span class="o">*</span> <span class="mi">1000000</span>
+        <span class="k">elif</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">&quot;MHz&quot;</span><span class="p">:</span>
+            <span class="n">unit_operator</span> <span class="o">=</span> <span class="mi">2</span>
+            <span class="n">frequency</span> <span class="o">=</span> <span class="n">frequency</span> <span class="o">*</span> <span class="mi">1000000000</span>
+        <span class="k">elif</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">&quot;mHz&quot;</span><span class="p">:</span>
+            <span class="n">unit_operator</span> <span class="o">=</span> <span class="mi">3</span>
+            <span class="n">frequency</span> <span class="o">=</span> <span class="n">frequency</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="k">elif</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">&quot;uHz&quot;</span><span class="p">:</span>
+            <span class="n">unit_operator</span> <span class="o">=</span> <span class="mi">4</span>
+            <span class="n">frequency</span> <span class="o">=</span> <span class="n">frequency</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w1</span><span class="si">{</span><span class="mi">2</span><span class="o">+</span><span class="n">channel</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">frequency</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">unit_operator</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.amplitude"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.amplitude">[docs]</a>    <span class="k">def</span> <span class="nf">amplitude</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">amplitude</span><span class="o">=</span><span class="mf">1.00</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;V&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;select amplitude</span>
+
+<span class="sd">        :param channel: desired channel, defaults to 1</span>
+<span class="sd">        :type channel: int, optional</span>
+<span class="sd">        :param amplitude: desired amplitude, defaults to 1</span>
+<span class="sd">        :type amplitude: int, optional</span>
+<span class="sd">        :param unit: unit of the amplitude, defaults to &quot;V&quot;</span>
+<span class="sd">        :type unit: str, optional</span>
+<span class="sd">        :return: amplitude successfully selected (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;channel must be int&quot;</span>
+        <span class="k">assert</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;channel must be 1 or 2&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">amplitude</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="s2">&quot;amplitude must be int or float&quot;</span>
+        <span class="n">units</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;mV&quot;</span><span class="p">,</span> <span class="s2">&quot;V&quot;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">unit</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="s2">&quot;unit must be a string&quot;</span>
+        <span class="k">assert</span> <span class="n">unit</span> <span class="ow">in</span> <span class="n">units</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;unit not known, possible units: </span><span class="si">{</span><span class="n">units</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="c1"># CH1: w15, CH2: w16</span>
+        <span class="k">if</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">&quot;V&quot;</span><span class="p">:</span>
+            <span class="n">amplitude</span> <span class="o">=</span> <span class="n">amplitude</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="k">elif</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">&quot;mV&quot;</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w1</span><span class="si">{</span><span class="mi">4</span><span class="o">+</span><span class="n">channel</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">amplitude</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.offset"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.offset">[docs]</a>    <span class="k">def</span> <span class="nf">offset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mf">1.00</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;select offset</span>
+
+<span class="sd">        :param channel: desired channel, defaults to 1</span>
+<span class="sd">        :type channel: int, optional</span>
+<span class="sd">        :param offset: desired offset voltage, unit V, defaults to 1.00</span>
+<span class="sd">        :type offset: int, optional</span>
+<span class="sd">        :return: offset successfully selected (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;channel must be int&quot;</span>
+        <span class="k">assert</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;channel must be 1 or 2&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="s2">&quot;offset must be int or float&quot;</span>
+        <span class="k">assert</span> <span class="n">offset</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="mf">9.99</span> <span class="ow">and</span> <span class="n">offset</span> <span class="o">&lt;=</span> <span class="mf">15.00</span><span class="p">,</span> <span class="s2">&quot;offset range: -9.99V to +15.00V&quot;</span>
+        <span class="c1"># offset range: -9.99V (offset_value = 1) to +15V (offset_value = 2500)</span>
+        <span class="c1"># CH1: w17, CH2: w18</span>
+        <span class="n">offset_value</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">offset</span> <span class="o">+</span> <span class="mi">1000</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w1</span><span class="si">{</span><span class="mi">6</span><span class="o">+</span><span class="n">channel</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">offset_value</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.duty_cycle"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.duty_cycle">[docs]</a>    <span class="k">def</span> <span class="nf">duty_cycle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">duty_cycle</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;select duty cycle (only possible for some waveforms)</span>
+
+<span class="sd">        :param channel: desired channel, defaults to 1</span>
+<span class="sd">        :type channel: int, optional</span>
+<span class="sd">        :param duty_cycle: desired duty cycle, defaults to 50</span>
+<span class="sd">        :type duty_cycle: int, optional</span>
+<span class="sd">        :return: duty cycle successfully selected (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;channel must be int&quot;</span>
+        <span class="k">assert</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;channel must be 1 or 2&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">duty_cycle</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="s2">&quot;duty_cycle must be int or float&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">duty_cycle</span> <span class="o">&gt;=</span> <span class="mf">0.00</span> <span class="ow">and</span> <span class="n">duty_cycle</span> <span class="o">&lt;=</span> <span class="mf">15.00</span>
+        <span class="p">),</span> <span class="s2">&quot;duty cycle range: 0.00 to 99.99&quot;</span>
+        <span class="c1"># duty cycle range: 0.00 (0) to 99.99 (9999)</span>
+        <span class="c1"># CH1: w19, CH2: w20</span>
+        <span class="k">if</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w19=</span><span class="si">{</span><span class="n">duty_cycle</span> <span class="o">*</span> <span class="mi">100</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w20=</span><span class="si">{</span><span class="n">duty_cycle</span> <span class="o">*</span> <span class="mi">100</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.phase"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.phase">[docs]</a>    <span class="k">def</span> <span class="nf">phase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;select phase (only possible for some waveforms)</span>
+
+<span class="sd">        :param channel: desired channel, defaults to 1</span>
+<span class="sd">        :type channel: int, optional</span>
+<span class="sd">        :param phase: desired phase shift, defaults to 0</span>
+<span class="sd">        :type phase: int, optional</span>
+<span class="sd">        :return: phase successfully selected (True) or not (False)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;channel must be int&quot;</span>
+        <span class="k">assert</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;channel must be 1 or 2&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">phase</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="s2">&quot;phase must be int or float&quot;</span>
+        <span class="k">assert</span> <span class="n">phase</span> <span class="o">&gt;=</span> <span class="mf">0.00</span> <span class="ow">and</span> <span class="n">phase</span> <span class="o">&lt;=</span> <span class="mf">359.99</span><span class="p">,</span> <span class="s2">&quot;phase range: 0.00 to 359.99&quot;</span>
+        <span class="c1"># phase range: 0° (0) to 359.99° (35999)</span>
+        <span class="c1"># CH1: w21, CH2: w22</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:w2</span><span class="si">{</span><span class="n">channel</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">phase</span> <span class="o">*</span> <span class="mi">100</span><span class="si">}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PSG9080.default"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.default">[docs]</a>    <span class="k">def</span> <span class="nf">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;reset selected channel to default values</span>
+
+<span class="sd">        :param channel: desired channel, defaults to 1</span>
+<span class="sd">        :type channel: int, optional</span>
+<span class="sd">        :return: channel successfully set to default</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="s2">&quot;channel must be int&quot;</span>
+        <span class="k">assert</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">channel</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;channel must be 1 or 2&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">waveform</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">waveform</span><span class="o">=</span><span class="s2">&quot;Sine&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">frequency</span><span class="o">=</span><span class="mi">100</span> <span class="o">*</span> <span class="p">(</span><span class="mi">10</span> <span class="o">**</span> <span class="n">channel</span><span class="p">),</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;Hz&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">amplitude</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">amplitude</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;V&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">duty_cycle</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">duty_cycle</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">off_all</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="PSG9080.default_all"><a class="viewcode-back" href="../psg9080.html#psg9080.PSG9080.default_all">[docs]</a>    <span class="k">def</span> <span class="nf">default_all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;reset both channels to default values</span>
+
+<span class="sd">        :return: successfully set to default</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PSG9080</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../psg9080.html">psg9080 module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../test.html">test module</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Daniel Pöhl.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.1.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
