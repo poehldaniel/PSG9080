@@ -70,3 +70,10 @@ html_static_path = ["_static"]
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+
+# -- Options for method sorting ----------------------------------------------
+
+# This value selects if automatically documented members are sorted alphabetical
+# (value 'alphabetical'), by member type (value 'groupwise') or by source order
+# (value 'bysource'). The default is alphabetical.
+autodoc_member_order = "bysource"
