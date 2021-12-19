@@ -40,11 +40,11 @@ class PSG9080:
     # __eol = "\n"
     # function_code 0-99
 
-    def __init__(self, port="COM7"):
+    def __init__(self, port: str):
         """__init__ method
 
         :param port: COM port of the PSG9080, defaults to "COM7"
-        :type port: str, optional
+        :type port: str
         """
         self.port = port
         self.device = None
@@ -89,7 +89,7 @@ class PSG9080:
     def __send(self, command: str) -> bool:
         """send the desired command to the PSG9080
 
-        :param command: desired command 
+        :param command: desired command
         :type command: str
         :return: sending data successfully (True) or not (False)
         :rtype: bool
@@ -199,9 +199,12 @@ class PSG9080:
         :return: frequency successfully selected (True) or not (False)
         :rtype: bool
         """
+        try:
+            frequency = float(frequency)
+        except:
+            raise TypeError("frequency must be int, float or string number")
         assert isinstance(channel, int), "channel must be int"
         assert channel == 0 or channel == 1, "channel must be 1 or 2"
-        assert isinstance(frequency, int), "frequency must be int"
         units = ["uHz", "mHz", "Hz", "kHz", "MHz"]
         assert isinstance(unit, str), "unit must be a string"
         assert unit in units, f"unit not known, possible units: {units}"
@@ -238,9 +241,12 @@ class PSG9080:
         :return: amplitude successfully selected (True) or not (False)
         :rtype: bool
         """
+        try:
+            amplitude = float(amplitude)
+        except:
+            raise TypeError("amplitude must be int, float or string number")
         assert isinstance(channel, int), "channel must be int"
         assert channel == 0 or channel == 1, "channel must be 1 or 2"
-        assert isinstance(amplitude, float), "amplitude must be int or float"
         units = ["mV", "V"]
         assert isinstance(unit, str), "unit must be a string"
         assert unit in units, f"unit not known, possible units: {units}"
@@ -264,9 +270,12 @@ class PSG9080:
         :return: offset successfully selected (True) or not (False)
         :rtype: bool
         """
+        try:
+            offset = float(offset)
+        except:
+            raise TypeError("offset must be int, float or string number")
         assert isinstance(channel, int), "channel must be int"
         assert channel == 0 or channel == 1, "channel must be 1 or 2"
-        assert isinstance(offset, float), "offset must be int or float"
         assert offset >= -9.99 and offset <= 15.00, "offset range: -9.99V to +15.00V"
         # offset range: -9.99V (offset_value = 1) to +15V (offset_value = 2500)
         # CH1: w17, CH2: w18
@@ -284,9 +293,12 @@ class PSG9080:
         :return: duty cycle successfully selected (True) or not (False)
         :rtype: bool
         """
+        try:
+            duty_cycle = float(duty_cycle)
+        except:
+            raise TypeError("duty_cycle must be int, float or string number")
         assert isinstance(channel, int), "channel must be int"
         assert channel == 0 or channel == 1, "channel must be 1 or 2"
-        assert isinstance(duty_cycle, float), "duty_cycle must be int or float"
         assert (
             duty_cycle >= 0.00 and duty_cycle <= 15.00
         ), "duty cycle range: 0.00 to 99.99"
@@ -310,9 +322,12 @@ class PSG9080:
         :return: phase successfully selected (True) or not (False)
         :rtype: bool
         """
+        try:
+            phase = float(phase)
+        except:
+            raise TypeError("phase must be int, float or string number")
         assert isinstance(channel, int), "channel must be int"
         assert channel == 0 or channel == 1, "channel must be 1 or 2"
-        assert isinstance(phase, float), "phase must be int or float"
         assert phase >= 0.00 and phase <= 359.99, "phase range: 0.00 to 359.99"
         # phase range: 0° (0) to 359.99° (35999)
         # CH1: w21, CH2: w22
